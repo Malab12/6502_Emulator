@@ -32,6 +32,13 @@ struct Mem
         return Data[Address];
     }
     
+    void WriteWord( u32 &Cycles, Word Value, u32 Address )
+    {
+        Data[Address] = Value & 0xFF;
+        Data[Address + 1] = (Value >> 8);
+        Cycles -= 2;
+    }
+
 };
 
 struct CPU
@@ -69,6 +76,20 @@ struct CPU
         return Data;
     }
 
+    Word FetchWord( u32& Cycles, Mem& memory )
+    {
+        // The 6502 processor is little endian
+        Word Data = memory[PC];
+        PC++;
+        Cycles--;
+
+        Data |= ( memory[PC] << 8 );
+        PC++;
+        Cycles--;
+
+        return Data;
+    }
+
     Byte ReadByte( u32& Cycles, Byte Address, Mem& memory )
     {
         Byte Data = memory[Address];
@@ -80,7 +101,8 @@ struct CPU
     static constexpr Byte 
         INS_LDA_IM = 0xA9,
         INS_LDA_ZP = 0xA5,
-        INS_LDA_ZPX = 0xB5;
+        INS_LDA_ZPX = 0xB5,
+        INS_JSR = 0x20;
 
     void LDASetStatus()
     {
@@ -118,6 +140,16 @@ struct CPU
                 Cycles--;
                 A = ReadByte( Cycles, ZeroPageAddress, memory );
                 LDASetStatus();  
+
+            } break;
+
+            case INS_JSR:
+            {
+                Word SubRoutineAddress = FetchWord( Cycles, memory );
+                memory.WriteWord(Cycles, PC - 1, SP);
+                SP++;
+                PC = SubRoutineAddress;
+                Cycles--;
 
             } break;
             
